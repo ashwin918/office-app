@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminDashboard() {
@@ -17,9 +17,9 @@ export default function AdminDashboard() {
 
   const fetchAll = useCallback(async () => {
     const [empRes, taskRes, statsRes] = await Promise.all([
-      axios.get('/api/employees'),
-      axios.get('/api/tasks'),
-      axios.get('/api/stats'),
+      API.get('/api/employees'),
+      API.get('/api/tasks'),
+      API.get('/api/stats'),
     ]);
     setEmployees(empRes.data);
     setTasks(taskRes.data);
@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const addEmployee = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/employees', empForm);
+      await API.post('/api/employees', empForm);
       showMsg('✅ Employee added successfully!');
       setShowAddEmp(false);
       setEmpForm({ username: '', password: '', full_name: '', email: '', department: '' });
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
 
   const deleteEmployee = async (id) => {
     if (!window.confirm('Delete this employee?')) return;
-    await axios.delete(`/api/employees/${id}`);
+    await API.delete(`/api/employees/${id}`);
     showMsg('Employee removed');
     fetchAll();
   };
@@ -56,7 +56,7 @@ export default function AdminDashboard() {
   const addTask = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/api/tasks', { ...taskForm, assigned_by: user.id });
+      await API.post('/api/tasks', { ...taskForm, assigned_by: user.id });
       showMsg('✅ Task assigned successfully!');
       setShowAddTask(false);
       setTaskForm({ title: '', description: '', assigned_to: '', priority: 'medium', due_date: '' });
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
 
   const deleteTask = async (id) => {
     if (!window.confirm('Delete this task?')) return;
-    await axios.delete(`/api/tasks/${id}`);
+    await API.delete(`/api/tasks/${id}`);
     showMsg('Task deleted');
     fetchAll();
   };
@@ -79,7 +79,6 @@ export default function AdminDashboard() {
 
   return (
     <div style={s.root}>
-      {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.sideTop}>
           <div style={s.brand}>🏢 OfficePro</div>
@@ -105,13 +104,10 @@ export default function AdminDashboard() {
         <button style={s.logoutBtn} onClick={logout}>🚪 Logout</button>
       </div>
 
-      {/* Main Content */}
       <div style={s.main}>
-        {/* Notifications */}
         {msg && <div style={s.toast}>{msg}</div>}
         {error && <div style={{ ...s.toast, background: '#fff3f3', borderColor: '#ffcccc', color: '#cc0000' }}>{error}</div>}
 
-        {/* Dashboard Tab */}
         {tab === 'dashboard' && (
           <div>
             <h2 style={s.pageTitle}>Dashboard Overview</h2>
@@ -131,7 +127,6 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
-
             <h3 style={{ ...s.pageTitle, fontSize: 18, marginTop: 32 }}>Recent Tasks</h3>
             <div style={s.tableWrap}>
               <table style={s.table}>
@@ -163,14 +158,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Employees Tab */}
         {tab === 'employees' && (
           <div>
             <div style={s.tabHeader}>
               <h2 style={s.pageTitle}>Employees</h2>
               <button style={s.primaryBtn} onClick={() => setShowAddEmp(true)}>+ Add Employee</button>
             </div>
-
             {showAddEmp && (
               <div style={s.modal}>
                 <div style={s.modalCard}>
@@ -198,7 +191,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead>
@@ -216,9 +208,7 @@ export default function AdminDashboard() {
                       <td style={s.td}>{emp.email || '—'}</td>
                       <td style={s.td}>{emp.department || '—'}</td>
                       <td style={s.td}>{new Date(emp.created_at).toLocaleDateString()}</td>
-                      <td style={s.td}>
-                        <button style={s.dangerBtn} onClick={() => deleteEmployee(emp.id)}>🗑 Remove</button>
-                      </td>
+                      <td style={s.td}><button style={s.dangerBtn} onClick={() => deleteEmployee(emp.id)}>🗑 Remove</button></td>
                     </tr>
                   ))}
                   {employees.length === 0 && (
@@ -230,14 +220,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Tasks Tab */}
         {tab === 'tasks' && (
           <div>
             <div style={s.tabHeader}>
               <h2 style={s.pageTitle}>Tasks</h2>
               <button style={s.primaryBtn} onClick={() => setShowAddTask(true)}>+ Assign Task</button>
             </div>
-
             {showAddTask && (
               <div style={s.modal}>
                 <div style={s.modalCard}>
@@ -287,7 +275,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-
             <div style={s.tableWrap}>
               <table style={s.table}>
                 <thead>
@@ -314,9 +301,7 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: 12 }}>{t.completion_percentage}%</span>
                       </td>
                       <td style={s.td}>{t.due_date ? new Date(t.due_date).toLocaleDateString() : '—'}</td>
-                      <td style={s.td}>
-                        <button style={s.dangerBtn} onClick={() => deleteTask(t.id)}>🗑</button>
-                      </td>
+                      <td style={s.td}><button style={s.dangerBtn} onClick={() => deleteTask(t.id)}>🗑</button></td>
                     </tr>
                   ))}
                   {tasks.length === 0 && (

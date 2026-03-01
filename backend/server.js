@@ -6,18 +6,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// =============================================
-// DATABASE CONFIG - Update with your details
-// =============================================
 const pool = new Pool({
-  host: 'localhost',
-  port: 5432,
-  database: 'office_app',   // Your DB name
-  user: 'postgres',          // Your PostgreSQL username
-  password: 'ashwin123', // Your PostgreSQL password
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
-// Test DB connection
 pool.connect((err, client, done) => {
   if (err) {
     console.error('❌ Database connection failed:', err.message);
@@ -27,11 +20,6 @@ pool.connect((err, client, done) => {
   }
 });
 
-// =============================================
-// AUTH ROUTES
-// =============================================
-
-// Login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -48,11 +36,6 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// =============================================
-// EMPLOYEE ROUTES (Admin only)
-// =============================================
-
-// Get all employees
 app.get('/api/employees', async (req, res) => {
   try {
     const result = await pool.query(
@@ -64,14 +47,12 @@ app.get('/api/employees', async (req, res) => {
   }
 });
 
-// Add employee
 app.post('/api/employees', async (req, res) => {
   const { username, password, full_name, email, department } = req.body;
   if (!username || !password || !full_name) {
     return res.status(400).json({ error: 'Username, password, and full name are required' });
   }
   try {
-    // Check if username exists
     const existing = await pool.query('SELECT id FROM employees WHERE username = $1', [username]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
@@ -86,7 +67,6 @@ app.post('/api/employees', async (req, res) => {
   }
 });
 
-// Delete employee
 app.delete('/api/employees/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM employees WHERE id = $1 AND role = $2', [req.params.id, 'employee']);
@@ -96,19 +76,10 @@ app.delete('/api/employees/:id', async (req, res) => {
   }
 });
 
-// =============================================
-// TASK ROUTES
-// =============================================
-
-// Get all tasks (admin view)
 app.get('/api/tasks', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        t.*, 
-        e.full_name AS assigned_to_name,
-        e.username AS assigned_to_username,
-        a.full_name AS assigned_by_name
+      SELECT t.*, e.full_name AS assigned_to_name, e.username AS assigned_to_username, a.full_name AS assigned_by_name
       FROM tasks t
       LEFT JOIN employees e ON t.assigned_to = e.id
       LEFT JOIN employees a ON t.assigned_by = a.id
@@ -120,13 +91,10 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Get tasks for a specific employee
 app.get('/api/tasks/employee/:employeeId', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        t.*,
-        a.full_name AS assigned_by_name
+      SELECT t.*, a.full_name AS assigned_by_name
       FROM tasks t
       LEFT JOIN employees a ON t.assigned_by = a.id
       WHERE t.assigned_to = $1
@@ -138,7 +106,6 @@ app.get('/api/tasks/employee/:employeeId', async (req, res) => {
   }
 });
 
-// Create task (admin assigns)
 app.post('/api/tasks', async (req, res) => {
   const { title, description, assigned_to, assigned_by, priority, due_date } = req.body;
   if (!title || !assigned_to) {
@@ -147,8 +114,7 @@ app.post('/api/tasks', async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO tasks (title, description, assigned_to, assigned_by, priority, due_date)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [title, description || null, assigned_to, assigned_by || null, priority || 'medium', due_date || null]
     );
     res.json({ success: true, task: result.rows[0] });
@@ -157,7 +123,6 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// Update task completion (employee updates progress)
 app.patch('/api/tasks/:id/progress', async (req, res) => {
   const { completion_percentage, notes, status } = req.body;
   try {
@@ -168,8 +133,7 @@ app.patch('/api/tasks/:id/progress', async (req, res) => {
       else autoStatus = 'pending';
     }
     const result = await pool.query(
-      `UPDATE tasks SET completion_percentage = $1, notes = $2, status = $3
-       WHERE id = $4 RETURNING *`,
+      `UPDATE tasks SET completion_percentage = $1, notes = $2, status = $3 WHERE id = $4 RETURNING *`,
       [completion_percentage, notes || null, autoStatus, req.params.id]
     );
     res.json({ success: true, task: result.rows[0] });
@@ -178,7 +142,6 @@ app.patch('/api/tasks/:id/progress', async (req, res) => {
   }
 });
 
-// Delete task
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM tasks WHERE id = $1', [req.params.id]);
@@ -188,14 +151,12 @@ app.delete('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// Dashboard stats (admin)
 app.get('/api/stats', async (req, res) => {
   try {
     const [empCount, taskStats] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM employees WHERE role = 'employee'"),
       pool.query(`
-        SELECT 
-          COUNT(*) AS total,
+        SELECT COUNT(*) AS total,
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
           SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
@@ -203,16 +164,13 @@ app.get('/api/stats', async (req, res) => {
         FROM tasks
       `)
     ]);
-    res.json({
-      employees: parseInt(empCount.rows[0].count),
-      ...taskStats.rows[0]
-    });
+    res.json({ employees: parseInt(empCount.rows[0].count), ...taskStats.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

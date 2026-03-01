@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { useAuth } from '../context/AuthContext';
 
 export default function EmployeeDashboard() {
@@ -11,7 +11,7 @@ export default function EmployeeDashboard() {
   const [tab, setTab] = useState('all');
 
   const fetchTasks = useCallback(async () => {
-    const res = await axios.get(`/api/tasks/employee/${user.id}`);
+    const res = await API.get(`/api/tasks/employee/${user.id}`);
     setTasks(res.data);
   }, [user.id]);
 
@@ -24,7 +24,7 @@ export default function EmployeeDashboard() {
 
   const submitProgress = async (e) => {
     e.preventDefault();
-    await axios.patch(`/api/tasks/${updating.id}/progress`, progressForm);
+    await API.patch(`/api/tasks/${updating.id}/progress`, progressForm);
     setMsg('✅ Progress updated!');
     setUpdating(null);
     fetchTasks();
@@ -46,7 +46,6 @@ export default function EmployeeDashboard() {
 
   return (
     <div style={s.root}>
-      {/* Sidebar */}
       <div style={s.sidebar}>
         <div style={s.sideTop}>
           <div style={s.brand}>🏢 OfficePro</div>
@@ -71,10 +70,8 @@ export default function EmployeeDashboard() {
         <button style={s.logoutBtn} onClick={logout}>🚪 Logout</button>
       </div>
 
-      {/* Main */}
       <div style={s.main}>
         {msg && <div style={s.toast}>{msg}</div>}
-
         <div style={s.header}>
           <div>
             <h2 style={s.pageTitle}>My Tasks</h2>
@@ -82,7 +79,6 @@ export default function EmployeeDashboard() {
           </div>
         </div>
 
-        {/* Stats Row */}
         <div style={s.statsRow}>
           {[
             { label: 'Pending', value: stats.pending, color: '#718096', icon: '⏳' },
@@ -99,14 +95,12 @@ export default function EmployeeDashboard() {
           ))}
         </div>
 
-        {/* Filter Tabs */}
         <div style={s.filterTabs}>
           {[['all', 'All Tasks'], ['pending', 'Pending'], ['in_progress', 'In Progress'], ['completed', 'Completed']].map(([key, label]) => (
             <button key={key} style={tab === key ? { ...s.filterBtn, ...s.filterActive } : s.filterBtn} onClick={() => setTab(key)}>{label}</button>
           ))}
         </div>
 
-        {/* Task Cards */}
         {filtered.length === 0 ? (
           <div style={s.empty}>🎉 No tasks here! {tab === 'all' ? 'Your admin will assign tasks soon.' : `No ${tab.replace('_', ' ')} tasks.`}</div>
         ) : (
@@ -117,19 +111,12 @@ export default function EmployeeDashboard() {
                   <h3 style={s.taskTitle}>{task.title}</h3>
                   <span style={{ ...s.badge, color: priorityColor[task.priority], background: priorityColor[task.priority] + '15' }}>{task.priority}</span>
                 </div>
-
                 {task.description && <p style={s.taskDesc}>{task.description}</p>}
-
                 <div style={s.taskMeta}>
                   <span style={{ ...s.badge, color: statusColor[task.status], background: statusBg[task.status] }}>{task.status.replace('_', ' ')}</span>
                   {task.due_date && <span style={s.dueDateTag}>📅 Due: {new Date(task.due_date).toLocaleDateString()}</span>}
                 </div>
-
-                {task.assigned_by_name && (
-                  <div style={s.assignedBy}>Assigned by: <strong>{task.assigned_by_name}</strong></div>
-                )}
-
-                {/* Progress Bar */}
+                {task.assigned_by_name && <div style={s.assignedBy}>Assigned by: <strong>{task.assigned_by_name}</strong></div>}
                 <div style={{ margin: '12px 0 4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555', marginBottom: 6 }}>
                     <span>Completion</span>
@@ -139,20 +126,13 @@ export default function EmployeeDashboard() {
                     <div style={{ ...s.progFill, width: `${task.completion_percentage}%`, background: task.completion_percentage === 100 ? '#38a169' : 'linear-gradient(90deg, #3182ce, #63b3ed)' }} />
                   </div>
                 </div>
-
-                {task.notes && (
-                  <div style={s.notesBox}><strong>Notes:</strong> {task.notes}</div>
-                )}
-
-                <button style={s.updateBtn} onClick={() => openUpdate(task)}>
-                  ✏️ Update Progress
-                </button>
+                {task.notes && <div style={s.notesBox}><strong>Notes:</strong> {task.notes}</div>}
+                <button style={s.updateBtn} onClick={() => openUpdate(task)}>✏️ Update Progress</button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Update Modal */}
         {updating && (
           <div style={s.modal}>
             <div style={s.modalCard}>
@@ -161,32 +141,24 @@ export default function EmployeeDashboard() {
               <form onSubmit={submitProgress}>
                 <div style={s.field}>
                   <label style={s.label}>Completion Percentage: <strong>{progressForm.completion_percentage}%</strong></label>
-                  <input
-                    type="range" min="0" max="100" step="5"
+                  <input type="range" min="0" max="100" step="5"
                     value={progressForm.completion_percentage}
                     onChange={e => setProgressForm({ ...progressForm, completion_percentage: parseInt(e.target.value) })}
-                    style={{ width: '100%', marginTop: 8, accentColor: '#3182ce' }}
-                  />
+                    style={{ width: '100%', marginTop: 8, accentColor: '#3182ce' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#888', marginTop: 4 }}>
                     <span>0%</span><span>50%</span><span>100%</span>
                   </div>
                 </div>
-
-                {/* Big percentage display */}
                 <div style={{ textAlign: 'center', margin: '16px 0', fontSize: 48, fontWeight: 800, color: progressForm.completion_percentage === 100 ? '#38a169' : '#3182ce' }}>
                   {progressForm.completion_percentage}%
                 </div>
-
                 <div style={s.field}>
                   <label style={s.label}>Notes / Comments</label>
-                  <textarea
-                    style={{ ...s.input, height: 100, resize: 'vertical' }}
+                  <textarea style={{ ...s.input, height: 100, resize: 'vertical' }}
                     placeholder="Add any notes or comments about your progress..."
                     value={progressForm.notes}
-                    onChange={e => setProgressForm({ ...progressForm, notes: e.target.value })}
-                  />
+                    onChange={e => setProgressForm({ ...progressForm, notes: e.target.value })} />
                 </div>
-
                 <div style={s.modalBtns}>
                   <button type="button" style={s.cancelBtn} onClick={() => setUpdating(null)}>Cancel</button>
                   <button type="submit" style={s.primaryBtn}>Save Progress</button>
