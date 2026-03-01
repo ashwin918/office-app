@@ -4,7 +4,7 @@ pipeline {
         githubPush()
     }
     environment {
-        IMAGE_NAME = "ashwinbalajiemc/office-app"
+        IMAGE_NAME = "ashwinemcbalaji/office-app"
         DOCKERHUB_CREDENTIALS = "dockerhub-cred1"
     }
     stages {
